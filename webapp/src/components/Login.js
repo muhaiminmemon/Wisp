@@ -1,54 +1,55 @@
-// src/components/Login.js
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Wind } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import '../styles/Login.css';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     try {
-      const { error } = await supabase.auth.signIn({ email, password });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        },
+      });
       if (error) throw error;
+
+      // Manual redirection
       navigate('/dashboard');
     } catch (error) {
       alert(error.message);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-      });
-      if (error) throw error;
-    } catch (error) {
-      alert(error.message);
-    }
-  };
 
   return (
     <div className="login-container">
-      <h2>Login</h2>
-      <form onSubmit={handleLogin} className="login-form">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button type="submit">Login</button>
-      </form>
-      <button onClick={handleGoogleLogin} className="google-login">Login with Google</button>
+      <div className="login-card">
+        <div className="text-center">
+          <Wind className="app-icon" />
+          <h2 className="app-name">Wisp</h2>
+          <p className="app-description">Streamline your productivity</p>
+        </div>
+        <button className="google-signin-button" onClick={handleGoogleLogin}>
+          <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+            {/* SVG paths */}
+          </svg>
+          Sign in with Google
+        </button>
+        <p className="terms-text">
+          By signing in, you agree to our{' '}
+          <a href="#" className="terms-link">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="#" className="terms-link">
+            Privacy Policy
+          </a>
+        </p>
+      </div>
     </div>
   );
 };

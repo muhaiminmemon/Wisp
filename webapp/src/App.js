@@ -43,7 +43,6 @@ function App() {
   return (
     <Router>
       <div className="container">
-        <h1>Productivity Buddy</h1>
         <Routes>
           <Route 
             path="/" 

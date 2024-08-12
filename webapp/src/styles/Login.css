@@ -1,0 +1,55 @@
+/* src/styles/Login.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer components {
+  .login-container {
+    @apply min-h-screen bg-gray-900 flex flex-col justify-center items-center p-4;
+  }
+
+  .login-card {
+    @apply max-w-md w-full space-y-8;
+  }
+
+  .app-icon {
+    @apply mx-auto h-16 w-16 text-blue-400;
+  }
+
+  .app-name {
+    @apply mt-6 text-5xl font-extrabold text-white tracking-tight;
+  }
+
+  .app-description {
+    @apply mt-2 text-sm text-gray-400;
+  }
+
+  .google-signin-button {
+    @apply w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300;
+  }
+
+  .terms-text {
+    @apply mt-3 text-center text-xs text-gray-500;
+  }
+
+  .terms-link {
+    @apply font-medium text-blue-400 hover:text-blue-300;
+  }
+}
+
+.google-calendar {
+    @apply mt-8 bg-gray-800 p-4 rounded-lg;
+  }
+  
+  .google-calendar h3 {
+    @apply text-xl font-semibold text-white mb-4;
+  }
+  
+  .google-calendar ul {
+    @apply space-y-4;
+  }
+  
+  .google-calendar li {
+    @apply bg-gray-700 p-3 rounded-md text-white;
+  }
