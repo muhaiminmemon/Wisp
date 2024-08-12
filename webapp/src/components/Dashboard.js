@@ -1,27 +1,53 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { Menu } from 'lucide-react';
 import GoogleCalendar from './GoogleCalendar';
+import ScreenTime from './ScreenTime';
+import { supabase } from '../supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      navigate('/');
-    } catch (error) {
-      alert(error.message);
-    }
-  };
+    const handleLogout = async () => {
+        try {
+          const { error } = await supabase.auth.signOut();
+          if (error) throw error;
+          navigate('/');
+        } catch (error) {
+          alert(error.message);
+        }
+      };
 
   return (
-    <div className="dashboard-container">
-      <h2>Dashboard</h2>
-      <p>Welcome to your dashboard!</p>
-      <GoogleCalendar />
-      <button onClick={handleLogout} className="logout-button">Logout</button>
+    <div className="bg-gray-900 min-h-screen text-white p-6">
+      <header className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Wisp Dashboard</h1>
+        <button className="p-2 bg-blue-600 rounded-md">
+          <Menu size={24} />
+        </button>
+      </header>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ScreenTime />
+        
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h2 className="text-xl font-semibold mb-4">Smart Blocking</h2>
+          <div className="bg-gray-700 rounded p-3 mb-3">
+            <h3 className="font-medium">Current Task: LeetCode Practice</h3>
+          </div>
+          <div className="bg-gray-700 rounded p-3">
+            <p className="text-sm text-gray-400">Blocked: Social Media, Entertainment</p>
+            <p className="text-sm text-gray-400">Allowed: LeetCode, Stack Overflow, GitHub</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-6 bg-gray-800 rounded-lg p-4">
+        <h2 className="text-xl font-semibold mb-4">Calendar Integration</h2>
+        <GoogleCalendar />
+        <button onClick={handleLogout} className="logout-button">Logout</button>
+      </div>
+      
     </div>
   );
 };
