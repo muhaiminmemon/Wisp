@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT API Test</title>
+</head>
+<body>
+    <h1>GPT API Test</h1>
+    <form id="testForm">
+        <label for="task">Task:</label>
+        <input type="text" id="task" value="Studying for a math exam"><br><br>
+        <label for="url">URL:</label>
+        <input type="text" id="url" value="https://www.example.com"><br><br>
+        <label for="title">Page Title:</label>
+        <input type="text" id="title" value="Introduction to Calculus - Online Math Course"><br><br>
+        <button type="submit">Test API</button>
+    </form>
+    <pre id="result"></pre>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const task = document.getElementById('task').value;
+            const url = document.getElementById('url').value;
+            const title = document.getElementById('title').value;
+            const resultElement = document.getElementById('result');
+
+            try {
+                const response = await fetch('http://localhost:4500/api/check-sites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ task, url, title }),
+                });
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

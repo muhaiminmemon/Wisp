@@ -9,6 +9,8 @@ const ScreenTime = () => {
 
   useEffect(() => {
     fetchScreenTimeData();
+    const interval = setInterval(fetchScreenTimeData, 300000); // Fetch every 5 minutes
+    return () => clearInterval(interval);
   }, []);
 
   const fetchScreenTimeData = async () => {
@@ -16,14 +18,15 @@ const ScreenTime = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching screen time data...');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('screen_time')
         .select('*')
+        .eq('user_id', user.id)
         .order('duration', { ascending: false })
         .limit(5);
-
-      console.log('Fetch response:', { data, error });
 
       if (error) throw error;
 
