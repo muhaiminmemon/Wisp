@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
       buttonContainer.appendChild(dashboardButton);
     } else {
       statusDiv.textContent = 'Not logged in';
-      taskDiv.textContent = 'Please log in to use Productivity Buddy';
+      taskDiv.textContent = 'Please log in to use Wisp';
       
       const loginButton = createButton('Log In', 'bg-green-500 hover:bg-green-700', () => {
         chrome.tabs.create({ url: 'http://localhost:3000/login' });
