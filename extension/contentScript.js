@@ -2,6 +2,20 @@
 
 console.log('Content script loaded');
 
+let startTime = Date.now();
+let isActive = true;
+
+window.addEventListener('focus', () => {
+  if (!isActive) {
+    startTime = Date.now();
+    isActive = true;
+  }
+});
+
+window.addEventListener('blur', () => {
+  isActive = false;
+});
+
 window.addEventListener('message', (event) => {
     if (event.source !== window) return;
     if (event.data.type && event.data.type === 'FROM_WEBAPP') {
@@ -50,7 +64,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         createBlockingOverlay(message.reason);
       }
     });
+  } else if (message.action === 'getScreenTime') {
+    const currentTime = Date.now();
+    const screenTime = isActive ? Math.floor((currentTime - startTime) / 1000) : 0;
+    sendResponse({ screenTime: screenTime });
+    startTime = currentTime; // Reset the start time
   }
+  return true; // Indicates that the response is sent asynchronously
 });
 
 function createBlockingOverlay(reason) {

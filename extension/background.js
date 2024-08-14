@@ -34,7 +34,7 @@ async function syncScreenTime() {
       return;
     }
 
-    console.log('Attempting to sync data:', dataToSync);
+    console.log('Attempting to sync data:', JSON.stringify(dataToSync, null, 2));
 
     const response = await fetch('http://localhost:4500/api/sync-screen-time', {
       method: 'POST',
@@ -45,16 +45,24 @@ async function syncScreenTime() {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('Screen time sync result:', result);
-    screenTimeData = {}; // Clear local data after successful sync
+    console.log('Screen time sync result:', JSON.stringify(result, null, 2));
+    
+    if (result.success) {
+      screenTimeData = {}; // Clear local data after successful sync
+      console.log('Local screen time data cleared after successful sync');
+    } else {
+      console.error('Sync was not successful:', result.message);
+    }
   } catch (error) {
     console.error('Error syncing screen time:', error);
   }
 }
+
 // Existing message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Received message:', message);
@@ -80,15 +88,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Existing onInstalled listener
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get(['user'], (result) => {
-    if (result.user) {
-      console.log('User already logged in:', result.user);
-    }
-  });
-});
-
 // Modified tabs.onUpdated listener
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
@@ -98,17 +97,18 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }
     });
     
-    // Update screen time tracking
+    console.log('Tab updated:', tab.url, tab.title);
     updateScreenTime();
     activeTab = tab;
     startTime = Date.now();
   }
 });
 
-// New tabs.onActivated listener for screen time tracking
+// Modified tabs.onActivated listener for screen time tracking
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   updateScreenTime();
   const tab = await chrome.tabs.get(activeInfo.tabId);
+  console.log('Tab activated:', tab.url, tab.title);
   activeTab = tab;
   startTime = Date.now();
 });
@@ -135,10 +135,25 @@ function checkSite(currentTask, tab) {
 }
 
 // Set up alarm for periodic screen time syncing
-chrome.alarms.create('syncScreenTime', { periodInMinutes: 5 });
+chrome.alarms.create('syncScreenTime', { periodInMinutes: 1 }); // Changed to 1 minute for more frequent syncing during testing
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'syncScreenTime') syncScreenTime();
+  if (alarm.name === 'syncScreenTime') {
+    console.log('Alarm triggered: syncing screen time');
+    syncScreenTime();
+  }
 });
 
 // Sync screen time when the browser is about to close
-chrome.runtime.onSuspend.addListener(syncScreenTime);
+chrome.runtime.onSuspend.addListener(() => {
+  console.log('Browser is about to close: syncing screen time');
+  syncScreenTime();
+});
+
+// Manually trigger sync for testing
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'manualSync') {
+    console.log('Manual sync triggered');
+    syncScreenTime();
+    sendResponse({ message: 'Manual sync initiated' });
+  }
+});

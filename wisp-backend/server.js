@@ -98,29 +98,40 @@ app.post('/api/check-sites', async (req, res) => {
 });
 
 app.post('/api/sync-screen-time', async (req, res) => {
-  console.log('Received screen time data:', req.body);
+  console.log('Received screen time data:', JSON.stringify(req.body, null, 2));
   try {
     const { screenTimeData } = req.body;
 
-    if (!screenTimeData || !Array.isArray(screenTimeData)) {
+    if (!screenTimeData || !Array.isArray(screenTimeData) || screenTimeData.length === 0) {
+      console.error('Invalid screen time data received');
       return res.status(400).json({ error: 'Invalid screen time data' });
     }
+
+    // Process and validate the data
+    const processedData = screenTimeData.map(item => ({
+      ...item,
+      user_id: item.user_id, // Use the existing user_id
+      duration: Number(item.duration) || 0,
+      created_at: new Date().toISOString()
+    }));
+
+    console.log('Processed screen time data:', JSON.stringify(processedData, null, 2));
 
     // Insert data into Supabase
     const { data, error } = await supabase
       .from('screen_time')
-      .insert(screenTimeData);
+      .insert(processedData);
 
     if (error) {
       console.error('Error inserting screen time data:', error);
-      return res.status(500).json({ error: 'Failed to insert screen time data' });
+      return res.status(500).json({ error: 'Failed to insert screen time data', details: error });
     }
 
-    console.log('Screen time data synced successfully');
-    res.json({ success: true, message: 'Screen time data synced successfully' });
+    console.log('Screen time data synced successfully:', data);
+    res.json({ success: true, message: 'Screen time data synced successfully', data });
   } catch (error) {
     console.error('Error in /api/sync-screen-time:', error);
-    res.status(500).json({ error: 'An error occurred while syncing screen time data' });
+    res.status(500).json({ error: 'An error occurred while syncing screen time data', details: error.message });
   }
 });
 
