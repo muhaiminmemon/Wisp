@@ -44,8 +44,12 @@ setInterval(() => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'blockSite') {
-      console.log('Received blockSite message:', message);
-      createBlockingOverlay(message.reason);
+    console.log('Received blockSite message:', message);
+    chrome.storage.local.get(['user'], (result) => {
+      if (result.user) {
+        createBlockingOverlay(message.reason);
+      }
+    });
   }
 });
 

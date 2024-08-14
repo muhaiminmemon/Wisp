@@ -36,7 +36,7 @@ app.post('/api/check-sites', async (req, res) => {
           2. The general purpose of the website (e.g., YouTube can be educational or entertaining)
           3. The specific content indicated by the page title
 
-          For YouTube:
+          For YouTube and other video platforms:
           - Allow general browsing of the site
           - Only consider it a distraction if the video title clearly indicates non-educational content unrelated to the task
 
