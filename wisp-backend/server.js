@@ -32,19 +32,29 @@ app.post('/api/check-sites', async (req, res) => {
       return res.status(400).json({ error: 'Missing task, url, or title in request body' });
     }
 
+    // Preprocess URL and title
+    const parsedUrl = new URL(url);
+    let processedTitle = title;
+
+    // If it's YouTube and the homepage, set a generic title
+    if (parsedUrl.hostname === 'www.youtube.com' && parsedUrl.pathname === '/') {
+      processedTitle = 'YouTube Homepage';
+    }
+
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are an AI productivity assistant. Your task is to evaluate whether a given URL and page title represent a distraction from the current task based on the following criteria:
+          content: `You are an AI productivity assistant. Evaluate whether a given URL and page title represent a distraction from the current task. Consider:
           1. The nature and focus of the current task.
           2. The typical purpose and content of the website (e.g., YouTube can serve both educational and entertainment purposes).
           3. The specific context provided by the page title.
     
           Guidelines:
           - For video platforms (e.g., YouTube, Vimeo): 
-            - Allow general browsing unless the video title clearly suggests non-educational or entertainment content that is unrelated to the task.
+            - For homepages, consider it as general browsing and do not flag as a distraction if it is general browswing of the platform and evaluate based on the current task.
+            - For specific videos, evaluate based on the video title and its relevance to the task.
           - For other types of websites:
             - Permit general browsing and research unless the page content is clearly irrelevant or unproductive for the current task.
     
@@ -57,7 +67,7 @@ app.post('/api/check-sites', async (req, res) => {
         },
         {
           role: "user",
-          content: `Task: "${task}". URL: "${url}". Page Title: "${title}". Determine if this website is likely to distract from the task at hand.`
+          content: `Task: "${task}". URL: "${url}". Page Title: "${processedTitle}". Determine if this website is likely to distract from the task at hand.`
         }
       ],
       max_tokens: 60,
@@ -108,12 +118,16 @@ app.post('/api/sync-screen-time', async (req, res) => {
     }
 
     // Process and validate the data
-    const processedData = screenTimeData.map(item => ({
-      ...item,
-      user_id: item.user_id, // Use the existing user_id
-      duration: Number(item.duration) || 0,
-      created_at: new Date().toISOString()
-    }));
+    const processedData = screenTimeData.map(item => {
+      const url = new URL(item.url);
+      return {
+        ...item,
+        user_id: item.user_id,
+        duration: Number(item.duration) || 0,
+        created_at: new Date().toISOString(),
+        domain: url.hostname  // Extract domain from URL
+      };
+    });
 
     console.log('Processed screen time data:', JSON.stringify(processedData, null, 2));
 

@@ -35,7 +35,6 @@ const ScreenTime = () => {
       setTotalUsage(processedData.totalUsage);
     } catch (error) {
       console.error('Error fetching screen time data:', error);
-      // Set default values in case of error
       setScreenTimeData({ chartData: [], topSites: [] });
       setTotalUsage('0h 0min');
     } finally {
@@ -54,7 +53,12 @@ const ScreenTime = () => {
       if (dayIndex >= 0 && dayIndex < 7) {
         dailyData[dayIndex] += item.duration;
       }
-      siteUsage[item.url] = (siteUsage[item.url] || 0) + item.duration;
+      
+      const domain = new URL(item.url).hostname;
+      if (!siteUsage[domain]) {
+        siteUsage[domain] = { url: domain, duration: 0 };
+      }
+      siteUsage[domain].duration += item.duration;
       totalSeconds += item.duration;
     });
 
@@ -63,12 +67,12 @@ const ScreenTime = () => {
       usage: Math.round(value / 60), // Convert to minutes
     }));
 
-    const topSites = Object.entries(siteUsage)
-      .sort(([,a],[,b]) => b-a)
+    const topSites = Object.values(siteUsage)
+      .sort((a, b) => b.duration - a.duration)
       .slice(0, 4)
-      .map(([url, duration]) => ({
-        url,
-        time: formatDuration(duration),
+      .map(site => ({
+        url: site.url,
+        time: formatDuration(site.duration),
         block: false, // You can implement blocking logic here
       }));
 
@@ -111,7 +115,7 @@ const ScreenTime = () => {
           <div key={index} className="flex justify-between items-center py-2 border-t border-gray-700">
             <div className="flex items-center">
               <img src={`https://www.google.com/s2/favicons?domain=${site.url}`} alt="" className="mr-2 w-4 h-4" />
-              <span>{new URL(site.url).hostname}</span>
+              <span>{site.url}</span>
             </div>
             <span>{site.time}</span>
             <label className="relative inline-flex items-center cursor-pointer">
