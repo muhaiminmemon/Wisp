@@ -119,29 +119,13 @@ app.post('/api/sync-screen-time', async (req, res) => {
 
     // Process and validate the data
     const processedData = screenTimeData.map(item => {
-      let domain = 'unknown';
-      
-      // Skip empty URLs or handle special cases
-      if (!item.url || item.url === '') {
-        domain = 'newtab';
-      } else if (item.url.startsWith('chrome://')) {
-        domain = 'chrome';
-      } else {
-        try {
-          const url = new URL(item.url);
-          domain = url.hostname;
-        } catch (urlError) {
-          console.warn(`Invalid URL encountered: ${item.url}`);
-          domain = 'unknown';
-        }
-      }
-
+      const url = new URL(item.url);
       return {
         ...item,
         user_id: item.user_id,
         duration: Number(item.duration) || 0,
         created_at: new Date().toISOString(),
-        domain
+        domain: url.hostname  // Extract domain from URL
       };
     });
 
