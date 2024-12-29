@@ -116,7 +116,7 @@ const GoogleCalendar = () => {
               {date.toLocaleDateString('default', { weekday: 'short', day: 'numeric' })}
             </div>
             <div className="space-y-1">
-              {getEventsByDay(date).map(event => (
+              {getEventsByDay(date).map(event => ( 
                 <div 
                   key={event.id} 
                   className="text-xs p-1 rounded-sm bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
