@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, PlusCircle, Calendar, Clock, X } from 'lucide-react';
+import { Menu, PlusCircle, Calendar, Clock, X, Pause, Play } from 'lucide-react';
 import GoogleCalendar from './GoogleCalendar';
 import ScreenTime from './ScreenTime';
 import { supabase } from '../supabaseClient';
@@ -13,9 +13,83 @@ const Dashboard = () => {
     const [endTime, setEndTime] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [showTaskForm, setShowTaskForm] = useState(false);
+    const [blockingEnabled, setBlockingEnabled] = useState(true);
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const getUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            if (data.user) {
+                setUser(data.user);
+            }
+        };
+        getUser();
+    }, []);
+
+    const toggleBlocking = async () => {
+        try {
+            const newState = !blockingEnabled;
+            setBlockingEnabled(newState);
+            
+            if (!user) {
+                console.error('No user found. Cannot toggle blocking.');
+                return;
+            }
+            
+            // Update the server with the blocking preference
+            const response = await fetch('http://localhost:4500/api/toggle-blocking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    enabled: newState,
+                    userId: user.id
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to update blocking preference');
+            }
+            
+            console.log(`Blocking ${newState ? 'enabled' : 'disabled'}`);
+        } catch (error) {
+            console.error('Error toggling blocking state:', error);
+            // Revert the state if the server update failed
+            setBlockingEnabled(!blockingEnabled);
+        }
+    };
 
     const updateExtensionTask = (task) => {
         console.log('Sending task update to extension:', task);
+        
+        // Update the task-user association on the server
+        if (user) {
+            fetch('http://localhost:4500/api/update-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    task: task,
+                    userId: user.id
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error('Failed to update task-user association');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Task-user association response:', data);
+            })
+            .catch(error => {
+                console.error('Error updating task-user association:', error);
+            });
+        }
+        
+        // Send the task to the extension
         window.postMessage({
             type: 'FROM_WEBAPP',
             payload: { action: 'updateTask', task }
@@ -84,7 +158,7 @@ const Dashboard = () => {
     useEffect(() => {
         console.log('Current task in Dashboard:', currentTask);
         updateExtensionTask(currentTask);
-    }, [currentTask]);
+    }, [currentTask, user]); // Add user as dependency to update the association when user is loaded
 
     const handleLogout = async () => {
         try {
@@ -158,7 +232,20 @@ const Dashboard = () => {
                 <ScreenTime />
         
                 <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
-                    <h2 className="text-xl font-semibold mb-6">Smart Blocking</h2>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold">Smart Blocking</h2>
+                        <button 
+                            onClick={toggleBlocking}
+                            className={`p-2 rounded-full ${blockingEnabled ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-600 hover:bg-gray-700'} transition-colors`}
+                            title={blockingEnabled ? "Pause Blocking" : "Resume Blocking"}
+                        >
+                            {blockingEnabled ? 
+                                <Pause size={18} className="text-white" /> : 
+                                <Play size={18} className="text-white" />
+                            }
+                        </button>
+                    </div>
+                    
                     <div className="bg-gray-700 rounded-lg p-4 mb-4">
                         <h3 className="font-medium text-gray-300 mb-2">Current Task:</h3>
                         <input 
@@ -168,9 +255,14 @@ const Dashboard = () => {
                             className="w-full bg-gray-600 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
+                    
                     <div className="bg-gray-700 rounded-lg p-4 mb-6">
-                        <p className="text-sm text-gray-400 mb-2">Blocked: Social Media, Entertainment</p>
-                        <p className="text-sm text-gray-400">Allowed: LeetCode, Stack Overflow, GitHub</p>
+                        <p className="text-sm text-gray-400 mb-2">
+                            {blockingEnabled ? "Blocked: Social Media, Entertainment" : "Blocking is currently paused"}
+                        </p>
+                        {blockingEnabled && (
+                            <p className="text-sm text-gray-400">Allowed: LeetCode, Stack Overflow, GitHub</p>
+                        )}
                     </div>
                     <div className="space-y-4">
                         <button 

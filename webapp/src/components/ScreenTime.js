@@ -226,73 +226,85 @@ const ScreenTime = () => {
 
   const fetchBlockedSites = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data: blockedSites, error } = await supabase
-        .from('blocked_sites')
-        .select('*')
-        .eq('user_id', user.id);
+        const { data: blockedSites, error } = await supabase
+            .from('blocked_sites')
+            .select('*')
+            .eq('user_id', user.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setScreenTimeData(prevData => {
-        const updatedSites = prevData.allSites.map(site => ({
-          ...site,
-          block: blockedSites.some(
-            blockedSite => blockedSite.url === site.url && blockedSite.is_blocked
-          )
-        }));
+        setScreenTimeData(prevData => {
+            const updatedSites = prevData.allSites.map(site => ({
+                ...site,
+                block: blockedSites.some(
+                    blockedSite => 
+                        blockedSite.url === site.url && 
+                        blockedSite.is_blocked
+                )
+            }));
 
-        return {
-          ...prevData,
-          allSites: updatedSites,
-          topSites: updatedSites.slice(0, 4)
-        };
-      });
+            return {
+                ...prevData,
+                allSites: updatedSites,
+                topSites: updatedSites.slice(0, 4)
+            };
+        });
     } catch (error) {
-      console.error('Error fetching blocked sites:', error);
+        console.error('Error fetching blocked sites:', error);
     }
-  };
+};
 
-  const handleBlockToggle = async (site, isBlocked) => {
-    try {
+const handleBlockToggle = async (site, isBlocked) => {
+  try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Send message to extension to update blocking
+      window.postMessage({
+          type: 'FROM_WEBAPP',
+          payload: { 
+              action: 'updateBlock', 
+              url: site.url, 
+              isBlocked: isBlocked 
+          }
+      }, '*');
+
       // Update backend
       const response = await fetch('http://localhost:4500/api/toggle-block', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          url: site.url,
-          isBlocked: isBlocked
-        })
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              userId: user.id,
+              url: site.url,
+              isBlocked: isBlocked
+          })
       });
 
       if (!response.ok) throw new Error('Failed to toggle block');
 
       // Update local state
       setScreenTimeData(prevData => {
-        const updatedSites = prevData.allSites.map(s => 
-          s.url === site.url ? { ...s, block: isBlocked } : s
-        );
-        
-        return {
-          ...prevData,
-          allSites: updatedSites,
-          topSites: updatedSites.slice(0, 4)
-        };
+          const updatedSites = prevData.allSites.map(s => 
+              s.url === site.url ? { ...s, block: isBlocked } : s
+          );
+          
+          return {
+              ...prevData,
+              allSites: updatedSites,
+              topSites: updatedSites.slice(0, 4)
+          };
       });
 
-    } catch (error) {
+  } catch (error) {
       console.error('Error toggling site block:', error);
       alert('Failed to update site blocking status');
-    }
-  };
+  }
+};
 
   const fetchScreenTimeData = async () => {
     try {
@@ -351,13 +363,13 @@ const ScreenTime = () => {
     }));
 
     const allSites = Object.values(siteUsage)
-      .sort((a, b) => b.duration - a.duration)
-      .map(site => ({
-        url: site.url,
+    .sort((a, b) => b.duration - a.duration)
+    .map(site => ({
+        url: site.url, // This should be just the domain
         time: formatDuration(site.duration),
-        block: false,
+        block: false, // Default to false, will be updated by fetchBlockedSites
         percentage: ((site.duration / totalSeconds) * 100).toFixed(1)
-      }));
+    }));
 
     const topSites = allSites.slice(0, 4);
     const avgSecondsPerDay = totalSeconds / 7;

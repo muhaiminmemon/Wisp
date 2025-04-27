@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 4500;
 
 app.use(cors({
-  origin: 'chrome-extension://lkfpallimhlljkddbebdkdcfnpglhdge'
+  origin: ['chrome-extension://lkfpallimhlljkddbebdkdcfnpglhdge', 'http://localhost:3000']
 }));
 app.use(express.json());
 
@@ -19,8 +19,57 @@ const client = new OpenAI({
 // Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
+// Store user blocking preferences in memory
+const userBlockingPreferences = {};
+
+// Store task-user associations
+const taskUserMap = new Map();
+
 app.get('/', (req, res) => {
   res.send('Productivity app server is running!');
+});
+
+// Add a new endpoint to handle toggling blocking
+app.post('/api/toggle-blocking', (req, res) => {
+  try {
+    const { userId, enabled } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId in request body' });
+    }
+    
+    userBlockingPreferences[userId] = !!enabled;
+    console.log(`Blocking for user ${userId} set to: ${enabled}`);
+    
+    res.json({ success: true, enabled: userBlockingPreferences[userId] });
+  } catch (error) {
+    console.error('Error toggling blocking:', error);
+    res.status(500).json({ error: 'Failed to toggle blocking', details: error.message });
+  }
+});
+
+// Update the task association endpoint
+app.post('/api/update-task', (req, res) => {
+  try {
+    const { task, userId } = req.body;
+    
+    if (!task) {
+      return res.status(400).json({ error: 'Missing task in request body' });
+    }
+    
+    if (userId) {
+      // Store the association between this task text and user ID
+      taskUserMap.set(task, userId);
+      console.log(`Associated task "${task}" with user ${userId}`);
+    } else {
+      console.log(`Received task update without userId: ${task}`);
+    }
+    
+    res.json({ success: true, message: 'Task updated' });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ error: 'Failed to update task', details: error.message });
+  }
 });
 
 app.post('/api/check-sites', async (req, res) => {
@@ -30,6 +79,21 @@ app.post('/api/check-sites', async (req, res) => {
 
     if (!task || !url || !title) {
       return res.status(400).json({ error: 'Missing task, url, or title in request body' });
+    }
+    
+    // Look up the user ID for this task
+    const userId = taskUserMap.get(task);
+    console.log(`Found user ID for task "${task}": ${userId || 'none'}`);
+    
+    // Check if blocking is disabled for this user
+    if (userId && userBlockingPreferences[userId] === false) {
+      console.log(`Blocking disabled for user ${userId}, skipping GPT API call`);
+      // Return a response indicating no distraction without calling the API
+      return res.json({ 
+        isDistraction: false, 
+        confidence: 1.0,
+        message: "Blocking is disabled"
+      });
     }
 
     // Preprocess URL and title
@@ -119,14 +183,29 @@ app.post('/api/sync-screen-time', async (req, res) => {
 
     // Process and validate the data
     const processedData = screenTimeData.map(item => {
-      const url = new URL(item.url);
-      return {
-        ...item,
-        user_id: item.user_id,
-        duration: Number(item.duration) || 0,
-        created_at: new Date().toISOString(),
-        domain: url.hostname  // Extract domain from URL
-      };
+      try {
+        // Make sure url is defined and not empty
+        const urlString = item.url && item.url.trim() ? item.url : "https://unknown.com";
+        const url = new URL(urlString);
+        
+        return {
+          ...item,
+          user_id: item.user_id,
+          duration: Number(item.duration) || 0,
+          created_at: new Date().toISOString(),
+          domain: url.hostname  // Extract domain from URL
+        };
+      } catch (error) {
+        console.error(`Error processing URL: ${item.url}`, error);
+        // Return a valid object with default values
+        return {
+          ...item,
+          user_id: item.user_id,
+          duration: Number(item.duration) || 0,
+          created_at: new Date().toISOString(),
+          domain: "unknown"
+        };
+      }
     });
 
     console.log('Processed screen time data:', JSON.stringify(processedData, null, 2));
@@ -146,6 +225,65 @@ app.post('/api/sync-screen-time', async (req, res) => {
   } catch (error) {
     console.error('Error in /api/sync-screen-time:', error);
     res.status(500).json({ error: 'An error occurred while syncing screen time data', details: error.message });
+  }
+});
+
+app.post('/api/toggle-block', async (req, res) => {
+  try {
+    const { userId, url, isBlocked } = req.body;
+    
+    if (!userId || !url) {
+      return res.status(400).json({ error: 'Missing userId or url in request body' });
+    }
+
+    // Check if the record already exists
+    const { data: existingData, error: fetchError } = await supabase
+      .from('blocked_sites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('url', url);
+
+    if (fetchError) {
+      console.error('Error checking for existing blocked site:', fetchError);
+      return res.status(500).json({ error: 'Failed to check for existing blocked site' });
+    }
+
+    let result;
+    
+    if (existingData && existingData.length > 0) {
+      // Update existing record
+      const { data, error } = await supabase
+        .from('blocked_sites')
+        .update({ is_blocked: isBlocked })
+        .eq('user_id', userId)
+        .eq('url', url);
+        
+      if (error) {
+        console.error('Error updating blocked site:', error);
+        return res.status(500).json({ error: 'Failed to update blocked site' });
+      }
+      
+      result = data;
+    } else {
+      // Insert new record
+      const { data, error } = await supabase
+        .from('blocked_sites')
+        .insert([
+          { user_id: userId, url: url, is_blocked: isBlocked }
+        ]);
+        
+      if (error) {
+        console.error('Error inserting blocked site:', error);
+        return res.status(500).json({ error: 'Failed to insert blocked site' });
+      }
+      
+      result = data;
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in /api/toggle-block:', error);
+    res.status(500).json({ error: 'An error occurred while toggling block status', details: error.message });
   }
 });
 

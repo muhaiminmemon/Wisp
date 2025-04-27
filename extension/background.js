@@ -120,7 +120,12 @@ function checkSite(currentTask, tab) {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ task: currentTask, url: tab.url, title: tab.title }),
+    body: JSON.stringify({ 
+      task: currentTask, 
+      url: tab.url, 
+      title: tab.title,
+      userId: currentTask.userId // Add this line
+    }),
   })
   .then(response => response.json())
   .then(data => {
