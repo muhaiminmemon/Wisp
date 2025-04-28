@@ -306,82 +306,130 @@ const handleBlockToggle = async (site, isBlocked) => {
   }
 };
 
-  const fetchScreenTimeData = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const today = new Date();
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      const { data, error } = await supabase
-        .from('screen_time')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('created_at', weekAgo.toISOString())
-        .order('duration', { ascending: false });
-
-      if (error) throw error;
-
-      const processedData = processData(data);
-      setScreenTimeData(processedData);
-      setTotalUsage(processedData.totalUsage);
-      setWeeklyAverage(processedData.weeklyAverage);
-    } catch (error) {
-      console.error('Error fetching screen time data:', error);
-      setScreenTimeData({ chartData: [], topSites: [], allSites: [] });
-      setTotalUsage('0h 0min');
-    } finally {
-      setLoading(false);
+const fetchScreenTimeData = async () => {
+  try {
+    setLoading(true);
+    console.log("Starting to fetch screen time data...");
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log("No authenticated user found");
+      throw new Error('User not authenticated');
     }
-  };
+    console.log("User authenticated:", user.id);
 
-  const processData = (data) => {
-    const dailyData = Array(7).fill(0);
-    const siteUsage = {};
-    let totalSeconds = 0;
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    console.log("Fetching data from:", weekAgo.toISOString(), "to now");
 
-    data.forEach(item => {
-      const date = new Date(item.created_at);
-      const dayIndex = 6 - Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-      if (dayIndex >= 0 && dayIndex < 7) {
-        dailyData[dayIndex] += item.duration;
-      }
-      
-      const domain = new URL(item.url).hostname;
-      if (!siteUsage[domain]) {
-        siteUsage[domain] = { url: domain, duration: 0 };
-      }
-      siteUsage[domain].duration += item.duration;
-      totalSeconds += item.duration;
+    const { data, error } = await supabase
+      .from('screen_time')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('created_at', weekAgo.toISOString())
+      .order('duration', { ascending: false });
+
+    if (error) {
+      console.log("Supabase error:", error);
+      throw error;
+    }
+
+    console.log("Data received:", data ? data.length : 0, "records");
+    
+    if (!data || data.length === 0) {
+      console.log("No data found in the specified timeframe");
+      setScreenTimeData({ 
+        chartData: Array(7).fill(0).map((_, i) => ({
+          day: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][(new Date().getDay() + i + 1) % 7],
+          usage: 0
+        })), 
+        topSites: [], 
+        allSites: [] 
+      });
+      setTotalUsage('0h 0min');
+      setLoading(false);
+      return;
+    }
+
+    const processedData = processData(data);
+    setScreenTimeData(processedData);
+    setTotalUsage(processedData.totalUsage);
+    setWeeklyAverage(processedData.weeklyAverage);
+  } catch (error) {
+    console.error('Error fetching screen time data:', error);
+    setScreenTimeData({ 
+      chartData: Array(7).fill(0).map((_, i) => ({
+        day: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][(new Date().getDay() + i + 1) % 7],
+        usage: 0
+      })), 
+      topSites: [], 
+      allSites: [] 
     });
+    setTotalUsage('0h 0min');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    const chartData = dailyData.map((value, index) => ({
-      day: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][(new Date().getDay() + index + 1) % 7],
-      usage: Math.round(value / 60), // Convert to minutes
-    }));
+const processData = (data) => {
+  const dailyData = Array(7).fill(0);
+  const siteUsage = {};
+  let totalSeconds = 0;
 
-    const allSites = Object.values(siteUsage)
+  data.forEach(item => {
+    const date = new Date(item.created_at);
+    const dayIndex = 6 - Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+    if (dayIndex >= 0 && dayIndex < 7) {
+      dailyData[dayIndex] += item.duration;
+    }
+    
+    // Safe URL parsing
+    let domain;
+    try {
+      if (item.url && typeof item.url === 'string' && item.url.trim()) {
+        // Make sure URL has protocol
+        const urlStr = item.url.startsWith('http') ? item.url : `http://${item.url}`;
+        domain = new URL(urlStr).hostname;
+      } else {
+        domain = item.domain || 'unknown';
+      }
+    } catch (error) {
+      console.log(`Invalid URL: ${item.url}`);
+      domain = (item.url && typeof item.url === 'string') ? item.url.replace(/https?:\/\//i, '') : 'unknown';
+    }
+
+    if (!siteUsage[domain]) {
+      siteUsage[domain] = { url: domain, duration: 0 };
+    }
+    siteUsage[domain].duration += item.duration;
+    totalSeconds += item.duration;
+  });
+
+  const chartData = dailyData.map((value, index) => ({
+    day: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][(new Date().getDay() + index + 1) % 7],
+    usage: Math.round(value / 60), // Convert to minutes
+  }));
+
+  const allSites = Object.values(siteUsage)
     .sort((a, b) => b.duration - a.duration)
     .map(site => ({
-        url: site.url, // This should be just the domain
-        time: formatDuration(site.duration),
-        block: false, // Default to false, will be updated by fetchBlockedSites
-        percentage: ((site.duration / totalSeconds) * 100).toFixed(1)
+      url: site.url,
+      time: formatDuration(site.duration),
+      block: false,
+      percentage: totalSeconds > 0 ? ((site.duration / totalSeconds) * 100).toFixed(1) : '0.0'
     }));
 
-    const topSites = allSites.slice(0, 4);
-    const avgSecondsPerDay = totalSeconds / 7;
+  const topSites = allSites.slice(0, 4);
+  const avgSecondsPerDay = totalSeconds / 7;
 
-    return {
-      chartData,
-      topSites,
-      allSites,
-      totalUsage: formatDuration(totalSeconds),
-      weeklyAverage: formatDuration(avgSecondsPerDay)
-    };
+  return {
+    chartData,
+    topSites,
+    allSites,
+    totalUsage: formatDuration(totalSeconds),
+    weeklyAverage: formatDuration(avgSecondsPerDay)
   };
+};
 
   const formatDuration = (seconds) => {
     const hours = Math.floor(seconds / 3600);

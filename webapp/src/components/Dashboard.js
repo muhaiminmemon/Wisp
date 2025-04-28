@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, PlusCircle, Calendar, Clock, X, Pause, Play } from 'lucide-react';
+import { Menu, PlusCircle, Calendar, Clock, X, Pause, Play, Trash2, Edit2, Check } from 'lucide-react';
 import GoogleCalendar from './GoogleCalendar';
 import ScreenTime from './ScreenTime';
 import { supabase } from '../supabaseClient';
@@ -15,6 +15,8 @@ const Dashboard = () => {
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [blockingEnabled, setBlockingEnabled] = useState(true);
     const [user, setUser] = useState(null);
+    const [tasks, setTasks] = useState([]);
+    const [editingTask, setEditingTask] = useState(false);
 
     useEffect(() => {
         const getUser = async () => {
@@ -96,6 +98,26 @@ const Dashboard = () => {
         }, '*');
     };
 
+    // Generate time options for dropdowns in 15-minute increments
+    const generateTimeOptions = () => {
+        const options = [];
+        for (let hour = 0; hour < 24; hour++) {
+            for (let minute = 0; minute < 60; minute += 15) {
+                const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+                const period = hour < 12 ? 'AM' : 'PM';
+                const formattedMinute = minute.toString().padStart(2, '0');
+                const timeString = `${formattedHour}:${formattedMinute}`;
+                const value = `${hour.toString().padStart(2, '0')}:${formattedMinute}`;
+                options.push(
+                    <option key={value} value={value}>
+                        {timeString} {period}
+                    </option>
+                );
+            }
+        }
+        return options;
+    };
+
     const fetchCurrentEvent = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -120,6 +142,9 @@ const Dashboard = () => {
             const data = await response.json();
             if (data.items && data.items.length > 0) {
                 setCurrentTask(data.items[0].summary);
+                
+                // Also fetch all upcoming events for the tasks list
+                fetchCalendarEvents(session.provider_token);
             } else {
                 const nextEventResponse = await fetch(
                     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
@@ -139,6 +164,9 @@ const Dashboard = () => {
                     const nextEvent = nextEventData.items[0];
                     const startTime = new Date(nextEvent.start.dateTime || nextEvent.start.date);
                     setCurrentTask(`Next: ${nextEvent.summary} (${startTime.toLocaleTimeString()})`);
+                    
+                    // Also fetch all upcoming events for the tasks list
+                    fetchCalendarEvents(session.provider_token);
                 } else {
                     setCurrentTask('No upcoming tasks');
                 }
@@ -146,6 +174,39 @@ const Dashboard = () => {
         } catch (error) {
             console.error('Error fetching current event:', error);
             setCurrentTask('Error fetching tasks');
+        }
+    };
+    
+    const fetchCalendarEvents = async (token) => {
+        try {
+            const now = new Date();
+            const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+            
+            const response = await fetch(
+                `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+                `timeMin=${now.toISOString()}&` +
+                `timeMax=${twoWeeksLater.toISOString()}&` +
+                `orderBy=startTime&singleEvents=true&maxResults=10`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+            
+            if (!response.ok) throw new Error('Failed to fetch calendar events');
+            
+            const data = await response.json();
+            if (data.items) {
+                setTasks(data.items.map(item => ({
+                    id: item.id,
+                    summary: item.summary,
+                    start: new Date(item.start.dateTime || item.start.date),
+                    end: new Date(item.end.dateTime || item.end.date)
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching calendar events:', error);
         }
     };
 
@@ -206,7 +267,40 @@ const Dashboard = () => {
 
             if (!response.ok) throw new Error('Failed to add event to calendar');
 
-            alert('Task added to calendar successfully!');
+            // Show success message with nice animation
+            const successMessage = document.createElement('div');
+            successMessage.innerText = 'Task added successfully!';
+            successMessage.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #10B981;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                opacity: 0;
+                transform: translateX(20px);
+                transition: opacity 0.3s, transform 0.3s;
+            `;
+            document.body.appendChild(successMessage);
+            
+            // Trigger animation
+            setTimeout(() => {
+                successMessage.style.opacity = '1';
+                successMessage.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Remove after delay
+            setTimeout(() => {
+                successMessage.style.opacity = '0';
+                successMessage.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    document.body.removeChild(successMessage);
+                }, 300);
+            }, 3000);
+            
             setNewTask('');
             setStartTime('');
             setEndTime('');
@@ -217,6 +311,82 @@ const Dashboard = () => {
             console.error('Error adding task to calendar:', error);
             alert('Failed to add task to calendar. Please try again.');
         }
+    };
+    
+    const deleteTask = async (taskId) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No session found');
+            
+            const response = await fetch(
+                `https://www.googleapis.com/calendar/v3/calendars/primary/events/${taskId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${session.provider_token}`
+                    }
+                }
+            );
+            
+            if (!response.ok) throw new Error('Failed to delete event');
+            
+            // Update the tasks list
+            setTasks(tasks.filter(task => task.id !== taskId));
+            
+            // Show success message
+            const successMessage = document.createElement('div');
+            successMessage.innerText = 'Task deleted successfully!';
+            successMessage.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #EF4444;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                opacity: 0;
+                transform: translateX(20px);
+                transition: opacity 0.3s, transform 0.3s;
+            `;
+            document.body.appendChild(successMessage);
+            
+            // Trigger animation
+            setTimeout(() => {
+                successMessage.style.opacity = '1';
+                successMessage.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Remove after delay
+            setTimeout(() => {
+                successMessage.style.opacity = '0';
+                successMessage.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    document.body.removeChild(successMessage);
+                }, 300);
+            }, 3000);
+            
+            // If the deleted task was the current task, refresh
+            if (currentTask.includes(tasks.find(task => task.id === taskId)?.summary)) {
+                fetchCurrentEvent();
+            }
+            
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            alert('Failed to delete task. Please try again.');
+        }
+    };
+
+    // Format date for display in tasks list
+    const formatDate = (date) => {
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
     };
 
     return (
@@ -248,12 +418,36 @@ const Dashboard = () => {
                     
                     <div className="bg-gray-700 rounded-lg p-4 mb-4">
                         <h3 className="font-medium text-gray-300 mb-2">Current Task:</h3>
-                        <input 
-                            type="text" 
-                            value={currentTask} 
-                            onChange={handleTaskChange}
-                            className="w-full bg-gray-600 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div className="flex items-center">
+                            {editingTask ? (
+                                <>
+                                    <input 
+                                        type="text" 
+                                        value={currentTask} 
+                                        onChange={handleTaskChange}
+                                        className="flex-1 bg-gray-600 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <button 
+                                        onClick={() => setEditingTask(false)}
+                                        className="ml-2 p-2 bg-green-500 rounded-full hover:bg-green-600 transition-colors"
+                                    >
+                                        <Check size={18} className="text-white" />
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex-1 bg-gray-600 text-white p-3 rounded-lg">
+                                        {currentTask}
+                                    </div>
+                                    <button 
+                                        onClick={() => setEditingTask(true)}
+                                        className="ml-2 p-2 bg-gray-500 rounded-full hover:bg-gray-600 transition-colors"
+                                    >
+                                        <Edit2 size={18} className="text-white" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                     
                     <div className="bg-gray-700 rounded-lg p-4 mb-6">
@@ -264,102 +458,145 @@ const Dashboard = () => {
                             <p className="text-sm text-gray-400">Allowed: LeetCode, Stack Overflow, GitHub</p>
                         )}
                     </div>
+                    
+                    {/* Task List */}
                     <div className="space-y-4">
-                        <button 
-                            onClick={() => setShowTaskForm(!showTaskForm)} 
-                            className="w-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                        >
-                            <PlusCircle size={20} className="mr-2" />
-                            Add New Task
-                        </button>
-                        {showTaskForm && (
-                            <div className="bg-gray-700 p-6 rounded-lg shadow-lg space-y-4">
-                                <form onSubmit={addTaskToCalendar}>
-                                    {/* Task Title */}
-                                    <div className="mb-4">
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                                            Task Title
-                                        </label>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-medium text-blue-400">Upcoming Tasks</h3>
+                            <button 
+                                onClick={() => setShowTaskForm(!showTaskForm)} 
+                                className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
+                            >
+                                <PlusCircle size={16} className="mr-1" />
+                                New Task
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                            {tasks.length > 0 ? (
+                                tasks.map(task => (
+                                    <div key={task.id} className="flex items-center justify-between bg-gray-700 rounded-lg p-3 hover:bg-gray-600 transition-duration-200">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm">{task.summary}</p>
+                                            <p className="text-xs text-gray-400">{formatDate(task.start)}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => deleteTask(task.id)}
+                                            className="ml-2 p-1.5 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+                                            title="Delete Task"
+                                        >
+                                            <Trash2 size={14} className="text-white" />
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-4 text-gray-500">
+                                    No upcoming tasks
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Add New Task Form - Modern UI */}
+                    {showTaskForm && (
+                        <div className="mt-6 bg-gray-700 p-5 rounded-xl shadow-lg border border-gray-600 animate-fade-in">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-blue-400">Add New Task</h3>
+                                <button 
+                                    onClick={() => setShowTaskForm(false)}
+                                    className="p-1 rounded-full hover:bg-gray-600 transition-colors"
+                                >
+                                    <X size={20} className="text-gray-400 hover:text-white" />
+                                </button>
+                            </div>
+                            <form onSubmit={addTaskToCalendar} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        Task Title
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={newTask}
+                                        onChange={(e) => setNewTask(e.target.value)}
+                                        placeholder="What would you like to work on?"
+                                        className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        Date
+                                    </label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-3 text-gray-400" size={16} />
                                         <input
-                                            type="text"
-                                            value={newTask}
-                                            onChange={(e) => setNewTask(e.target.value)}
-                                            placeholder="Enter task name"
-                                            className="w-full bg-gray-600 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="w-full bg-gray-800 text-white p-3 pl-10 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                             required
                                         />
                                     </div>
+                                </div>
 
-                                    {/* Date Selection */}
-                                    <div className="mb-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">
-                                            Date
+                                            Start Time
                                         </label>
                                         <div className="relative">
-                                            <Calendar className="absolute left-3 top-3 text-gray-400" size={16} />
-                                            <input
-                                                type="date"
-                                                value={selectedDate}
-                                                onChange={(e) => setSelectedDate(e.target.value)}
-                                                className="w-full bg-gray-600 text-white p-3 pl-10 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            <Clock className="absolute left-3 top-3 text-gray-400" size={16} />
+                                            <select
+                                                value={startTime}
+                                                onChange={(e) => setStartTime(e.target.value)}
+                                                className="w-full bg-gray-800 text-white p-3 pl-10 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors appearance-none"
                                                 required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Time Selection */}
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                                                Start Time
-                                            </label>
-                                            <div className="relative">
-                                                <Clock className="absolute left-3 top-3 text-gray-400" size={16} />
-                                                <input
-                                                    type="time"
-                                                    value={startTime}
-                                                    onChange={(e) => setStartTime(e.target.value)}
-                                                    className="w-full bg-gray-600 text-white p-3 pl-10 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                                                End Time
-                                            </label>
-                                            <div className="relative">
-                                                <Clock className="absolute left-3 top-3 text-gray-400" size={16} />
-                                                <input
-                                                    type="time"
-                                                    value={endTime}
-                                                    onChange={(e) => setEndTime(e.target.value)}
-                                                    className="w-full bg-gray-600 text-white p-3 pl-10 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                    required
-                                                />
+                                            >
+                                                <option value="" disabled>Select time</option>
+                                                {generateTimeOptions()}
+                                            </select>
+                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                                                <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="flex gap-3">
-                                        <button 
-                                            type="submit" 
-                                            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                                        >
-                                            Add to Calendar
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setShowTaskForm(false)}
-                                            className="bg-gray-600 hover:bg-gray-500 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                                            End Time
+                                        </label>
+                                        <div className="relative">
+                                            <Clock className="absolute left-3 top-3 text-gray-400" size={16} />
+                                            <select
+                                                value={endTime}
+                                                onChange={(e) => setEndTime(e.target.value)}
+                                                className="w-full bg-gray-800 text-white p-3 pl-10 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors appearance-none"
+                                                required
+                                            >
+                                                <option value="" disabled>Select time</option>
+                                                {generateTimeOptions()}
+                                            </select>
+                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                                                <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        </div>
                                     </div>
-                                </form>
-                            </div>
-                        )}
-                    </div>
+                                </div>
+
+                                <button 
+                                    type="submit" 
+                                    className="w-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                                >
+                                    <PlusCircle size={18} className="mr-2" />
+                                    Add to Calendar
+                                </button>
+                            </form>
+                        </div>
+                    )}
                 </div>
             </div>
       
@@ -373,6 +610,42 @@ const Dashboard = () => {
                     Logout
                 </button>
             </div>
+            
+            {/* Add some CSS for animations */}
+            <style jsx>{`
+                .animate-fade-in {
+                    animation: fadeIn 0.3s ease-out;
+                }
+                
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #1f2937;
+                    border-radius: 8px;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #4b5563;
+                    border-radius: 8px;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #6b7280;
+                }
+            `}</style>
         </div>
     );
 };
