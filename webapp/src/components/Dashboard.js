@@ -393,9 +393,7 @@ const Dashboard = () => {
         <div className="bg-gray-900 min-h-screen text-white p-6">
             <header className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-blue-400">Wisp Dashboard</h1>
-                <button className="p-2 bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
-                    <Menu size={24} />
-                </button>
+                {/* Removed the circled button */}
             </header>
       
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,0 +1,641 @@
+/* src/styles/Dashboard.css */
+.dashboard-container {
+    padding: 1.5rem;
+    max-width: 100%;
+  }
+  
+  .dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  
+  .dashboard-title h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  
+  .dashboard-title p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  
+  .focus-mode-toggle {
+    display: flex;
+    align-items: center;
+  }
+  
+  .focus-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+  
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+    background-color: #374151;
+    border-radius: 12px;
+    position: relative;
+    transition: background-color 0.3s;
+    cursor: pointer;
+  }
+  
+  .toggle-switch.active {
+    background-color: var(--primary-color);
+  }
+  
+  .toggle-button {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+  }
+  
+  .toggle-switch.active .toggle-button {
+    transform: translateX(20px);
+  }
+  
+  .dashboard-content {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.5rem;
+  }
+  
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .dashboard-card {
+    background-color: #1e293b;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .card-header {
+    padding: 1.25rem 1.25rem 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  .card-header h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  
+  .card-header p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  
+  /* Usage Statistics Card */
+  .usage-card {
+    flex: 1;
+  }
+  
+  .card-filter {
+    padding: 0 1.25rem;
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .filter-btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  
+  .filter-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .filter-btn.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+  }
+  
+  .card-stats {
+    padding: 0 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .stats-total {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .stats-total h3 {
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+  
+  .stats-avg {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  
+  .usage-chart {
+    height: 200px;
+    padding: 1.25rem;
+    display: flex;
+  }
+  
+  .chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-right: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  
+  .chart-bars {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 100%;
+  }
+  
+  .chart-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .chart-bar {
+    width: 24px;
+    background-color: var(--primary-color);
+    border-radius: 4px 4px 0 0;
+    margin-bottom: 0.5rem;
+    transition: height 0.3s ease;
+  }
+  
+  .day-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  
+  /* Top Sites Card */
+  .sites-card {
+    margin-top: 1.5rem;
+  }
+  
+  .top-sites-list {
+    padding: 0.75rem 1.25rem 1.25rem;
+  }
+  
+  .site-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .site-item:last-child {
+    border-bottom: none;
+  }
+  
+  .site-icon {
+    width: 32px;
+    height: 32px;
+    background-color: #374151;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+  }
+  
+  .site-info {
+    flex: 1;
+  }
+  
+  .site-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+  }
+  
+  .site-url {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  
+  .site-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  
+  .site-usage-bar {
+    height: 4px;
+    background-color: #374151;
+    border-radius: 2px;
+    margin-bottom: 0.25rem;
+  }
+  
+  .usage-progress {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 2px;
+  }
+  
+  .site-percentage {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: right;
+  }
+  
+  .site-toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #374151;
+    transition: .4s;
+    border-radius: 34px;
+  }
+  
+  .site-toggle .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  .site-toggle input:checked + .slider {
+    background-color: var(--primary-color);
+  }
+  
+  .site-toggle input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+  
+  .site-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+  
+  .site-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider.round {
+    border-radius: 34px;
+  }
+  
+  .slider.round:before {
+    border-radius: 50%;
+  }
+  
+  /* Dashboard Tabs */
+  .dashboard-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+  
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    background-color: #1e293b;
+    transition: all 0.2s;
+  }
+  
+  .tab-btn:hover {
+    background-color: #2d3a4f;
+  }
+  
+  .tab-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  /* Tasks Card */
+  .tasks-card {
+    flex: 1;
+  }
+  
+  .add-task-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.25rem;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 0.75rem;
+    transition: background-color 0.2s;
+  }
+  
+  .add-task-btn:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .tasks-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .task-tab-btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    position: relative;
+    transition: color 0.2s;
+  }
+  
+  .task-tab-btn:hover {
+    color: var(--text-color);
+  }
+  
+  .task-tab-btn.active {
+    color: var(--text-color);
+  }
+  
+  .task-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--primary-color);
+  }
+  
+  .tasks-content {
+    padding: 1.25rem;
+    min-height: 200px;
+  }
+  
+  .no-tasks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 0;
+  }
+  
+  .no-tasks-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+  }
+  
+  .no-tasks h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .no-tasks p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    max-width: 300px;
+    margin: 0 auto 1rem;
+  }
+  
+  .add-task-small-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 0.875rem;
+  }
+  
+  .tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  
+  .task-checkbox {
+    position: relative;
+  }
+  
+  .task-checkbox input {
+    opacity: 0;
+    position: absolute;
+  }
+  
+  .task-checkbox label {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    position: relative;
+  }
+  
+  .task-checkbox input:checked + label {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+  
+  .task-checkbox input:checked + label::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 3px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  
+  .task-details {
+    flex: 1;
+  }
+  
+  .task-details h4 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+  
+  .task-details p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  
+  /* Smart Blocking Card */
+  .blocking-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .blocking-status {
+    padding: 0.75rem 1.25rem;
+  }
+  
+  .blocking-status h3 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-muted);
+  }
+  
+  .current-task {
+    background-color: #374151;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+  }
+  
+  .current-task p {
+    font-size: 0.875rem;
+  }
+  
+  .blocking-settings {
+    padding: 0.75rem 1.25rem;
+  }
+  
+  .blocked-sites,
+  .allowed-sites {
+    margin-bottom: 1rem;
+  }
+  
+  .blocked-sites h4,
+  .allowed-sites h4 {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  
+  .tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .tag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    white-space: nowrap;
+  }
+  
+  .social-tag {
+    background-color: #ef4444;
+    color: white;
+  }
+  
+  .entertainment-tag {
+    background-color: #f97316;
+    color: white;
+  }
+  
+  .shopping-tag {
+    background-color: #8b5cf6;
+    color: white;
+  }
+  
+  .allowed-tag {
+    background-color: #374151;
+    color: var(--text-color);
+  }
+  
+  .configure-blocking-btn {
+    margin: auto 1.25rem 1.25rem;
+    padding: 0.625rem 0;
+    border-radius: 0.25rem;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    width: calc(100% - 2.5rem);
+    text-align: center;
+  }
+  
+  .configure-blocking-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  @media (max-width: 1024px) {
+    .dashboard-content {
+      grid-template-columns: 1fr;
+    }
+    
+    .dashboard-side {
+      order: -1;
+    }
+    
+    .blocking-card {
+      height: auto;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    
+    .card-stats {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+  }

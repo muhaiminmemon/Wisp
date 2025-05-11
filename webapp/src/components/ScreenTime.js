@@ -372,50 +372,100 @@ const fetchScreenTimeData = async () => {
 };
 
 const processData = (data) => {
+  // Group by day of week
   const dailyData = Array(7).fill(0);
   const siteUsage = {};
   let totalSeconds = 0;
 
-  data.forEach(item => {
-    const date = new Date(item.created_at);
-    const dayIndex = 6 - Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-    if (dayIndex >= 0 && dayIndex < 7) {
-      dailyData[dayIndex] += item.duration;
-    }
-    
-    // Safe URL parsing
-    let domain;
-    try {
-      if (item.url && typeof item.url === 'string' && item.url.trim()) {
-        // Make sure URL has protocol
-        const urlStr = item.url.startsWith('http') ? item.url : `http://${item.url}`;
-        domain = new URL(urlStr).hostname;
-      } else {
-        domain = item.domain || 'unknown';
-      }
-    } catch (error) {
-      console.log(`Invalid URL: ${item.url}`);
-      domain = (item.url && typeof item.url === 'string') ? item.url.replace(/https?:\/\//i, '') : 'unknown';
-    }
+  // Get dates for the last 7 days
+  const today = new Date();
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(today.getDate() - i);
+    last7Days.push(d.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+  }
 
-    if (!siteUsage[domain]) {
-      siteUsage[domain] = { url: domain, duration: 0 };
-    }
-    siteUsage[domain].duration += item.duration;
-    totalSeconds += item.duration;
+  // Initialize daily data with zeros
+  const dayMap = {};
+  last7Days.forEach((date, index) => {
+    dayMap[date] = index;
   });
 
-  const chartData = dailyData.map((value, index) => ({
-    day: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][(new Date().getDay() + index + 1) % 7],
-    usage: Math.round(value / 60), // Convert to minutes
-  }));
+  data.forEach(item => {
+    try {
+      // Process date from item.created_at
+      const date = new Date(item.created_at);
+      const dateString = date.toISOString().split('T')[0];
+      
+      // Add to daily data if within last 7 days
+      if (dateString in dayMap) {
+        const dayIndex = dayMap[dateString];
+        dailyData[dayIndex] += item.duration || 0;
+      }
+      
+      // Safe URL parsing
+      let domain;
+      try {
+        if (item.url && typeof item.url === 'string' && item.url.trim()) {
+          // Make sure URL has protocol
+          let urlStr = item.url;
+          if (!urlStr.startsWith('http') && !urlStr.startsWith('chrome')) {
+            urlStr = `http://${urlStr}`;
+          }
+          const urlObj = new URL(urlStr);
+          domain = urlObj.hostname;
+        } else if (item.domain) {
+          domain = item.domain;
+        } else {
+          domain = 'unknown';
+        }
+      } catch (error) {
+        console.log(`Invalid URL: ${item.url}`);
+        domain = (item.url && typeof item.url === 'string') ? 
+                  item.url.replace(/https?:\/\//i, '') : 'unknown';
+      }
 
+      // Filter out very low duration entries (likely tracking errors)
+      if (item.duration >= 1) { // Only count if at least 1 second
+        if (!siteUsage[domain]) {
+          siteUsage[domain] = { url: domain, duration: 0 };
+        }
+        siteUsage[domain].duration += item.duration;
+        totalSeconds += item.duration;
+      }
+    } catch (err) {
+      console.error("Error processing screen time item:", err);
+    }
+  });
+  
+  // Cap unreasonable values (more than 12 hours per day is unlikely)
+  const MAX_DAILY_SECONDS = 12 * 60 * 60; // 12 hours
+  dailyData.forEach((val, idx) => {
+    if (val > MAX_DAILY_SECONDS) {
+      dailyData[idx] = MAX_DAILY_SECONDS;
+    }
+  });
+
+  // Create chart data with day names
+  const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const chartData = last7Days.map((date, index) => {
+    const d = new Date(date);
+    return {
+      day: dayNames[d.getDay()], 
+      date: date,
+      usage: Math.round(dailyData[index] / 60), // Convert to minutes
+    };
+  });
+
+  // Filter and sort sites by usage
   const allSites = Object.values(siteUsage)
+    .filter(site => site.duration >= 5) // Only include sites with at least 5 seconds
     .sort((a, b) => b.duration - a.duration)
     .map(site => ({
       url: site.url,
       time: formatDuration(site.duration),
-      block: false,
+      block: false, // Will be updated later with actual block status
       percentage: totalSeconds > 0 ? ((site.duration / totalSeconds) * 100).toFixed(1) : '0.0'
     }));
 
